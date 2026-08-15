@@ -1,0 +1,19 @@
+[versions]
+kotlin = "2.3.21"
+# Keep in sync with the target server. Bump when deploying to a different Keycloak version.
+keycloak = "26.7.1"
+jboss-logging = "3.6.1.Final"
+gradle-shadow = "8.3.11"
+snakeyaml = "2.6"
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+shadow = { id = "com.gradleup.shadow", version.ref = "gradle-shadow" }
+
+[libraries]
+keycloak-core = { module = "org.keycloak:keycloak-core", version.ref = "keycloak" }
+keycloak-server-spi = { module = "org.keycloak:keycloak-server-spi", version.ref = "keycloak" }
+keycloak-server-spi-private = { module = "org.keycloak:keycloak-server-spi-private", version.ref = "keycloak" }
+
+jboss-logging = { module = "org.jboss.logging:jboss-logging", version.ref = "jboss-logging" }
+snakeyaml = { module = "org.yaml:snakeyaml", version.ref = "snakeyaml" }
