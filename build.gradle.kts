@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.shadow)
+    id("maven-publish")
 }
 
 group = "net.agl.keycloak"
@@ -53,4 +54,41 @@ tasks.shadowJar {
 
 tasks.build {
     dependsOn(tasks.shadowJar)
+}
+
+java {
+    withSourcesJar()
+    withJavadocJar()
+    withJavadocJar()
+}
+
+publishing {
+    val publishVersion = project.version.toString()
+
+    publications {
+        create<MavenPublication>("maven") {
+            version = publishVersion
+            groupId = project.group.toString()
+            artifactId = project.name
+            from(components["java"])
+        }
+    }
+
+    repositories {
+        maven {
+            name = "maven"
+            url = uri(
+                findProperty(
+                    if (publishVersion.endsWith("-SNAPSHOT"))
+                        "repo.publish.snapshots"
+                    else
+                        "repo.publish.releases"
+                )!! as String
+            )
+            credentials {
+                username = findProperty("repo.publish.username")!! as String
+                password = findProperty("repo.publish.password")!! as String
+            }
+        }
+    }
 }
