@@ -2,6 +2,7 @@ package net.agl.keycloak.events
 
 import net.agl.keycloak.config.AppConfig
 import net.agl.keycloak.config.leafCount
+import net.agl.keycloak.feedback.EventSinkRegistry
 import org.jboss.logging.Logger
 import org.keycloak.Config
 import org.keycloak.events.EventListenerProvider
@@ -11,21 +12,21 @@ import org.keycloak.models.KeycloakSessionFactory
 
 /**
  * Registered via META-INF/services/org.keycloak.events.EventListenerProviderFactory.
- * Enable with: spi-events-listener-skeleton-event-listener-enabled=true in keycloak.conf,
- * then add "skeleton-event-listener" to the realm's Events Config > Event Listeners.
+ * Enable with: spi-events-listener-user-event-listener-enabled=true in keycloak.conf,
+ * then add "user-event-listener" to the realm's Events Config > Event Listeners.
  */
-class SkeletonEventListenerProviderFactory : EventListenerProviderFactory {
+class UserEventListenerProviderFactory : EventListenerProviderFactory {
 
     companion object {
-        const val PROVIDER_ID = "skeleton-event-listener"
-        private val log = Logger.getLogger(SkeletonEventListenerProviderFactory::class.java)
+        const val PROVIDER_ID = "user-event-listener"
+        private val log = Logger.getLogger(UserEventListenerProviderFactory::class.java)
     }
 
     override fun create(session: KeycloakSession): EventListenerProvider =
-        SkeletonEventListenerProvider(session)
+        UserEventListenerProvider(session)
 
     // Called once per factory instance, before any create() call. `config` exposes
-    // spi-events-listener-skeleton-event-listener-<key>=<value> entries from keycloak.conf.
+    // spi-events-listener-user-event-listener-<key>=<value> entries from keycloak.conf.
     override fun init(config: Config.Scope) {
         // TODO: read configuration
     }
@@ -39,11 +40,14 @@ class SkeletonEventListenerProviderFactory : EventListenerProviderFactory {
                 "(classpath, ./, ./config; KCEL_-prefixed env vars override all)",
             AppConfig.tree.leafCount(),
         )
+        // Triggers EventSinkRegistry's lazy build so webhook/broker startup failures (bad config,
+        // unreachable broker) surface in the server log now, not on the first fired event.
+        EventSinkRegistry.sinks
     }
 
     // Called on server shutdown.
     override fun close() {
-        // TODO: release factory-wide resources
+        EventSinkRegistry.closeAll()
     }
 
     override fun getId(): String = PROVIDER_ID

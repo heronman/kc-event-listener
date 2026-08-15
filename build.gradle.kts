@@ -22,6 +22,11 @@ dependencies {
     // Bundled into the provider jar (see relocate() below) — YAML config parsing.
     implementation(libs.snakeyaml)
 
+    // Feedback transports (net.agl.keycloak.feedback) — bundled, Keycloak doesn't provide these.
+    implementation(libs.kafka.clients)
+    implementation(libs.paho.mqtt)
+    implementation(libs.rabbitmq.amqp.client)
+
     testImplementation(kotlin("test"))
 }
 
@@ -40,7 +45,10 @@ tasks.shadowJar {
     archiveClassifier.set("")
     // Keycloak/Quarkus bundles its own snakeyaml on the server classpath; relocate ours
     // so the two never collide regardless of version skew.
-    relocate("org.yaml.snakeyaml", "net.agl.rest.keycloak.shaded.snakeyaml")
+    relocate("org.yaml.snakeyaml", "net.agl.keycloak.shaded.snakeyaml")
+    // kafka-clients/paho/amqp-client each carry META-INF/services SPI files (compression codecs,
+    // security providers, ...); merge instead of letting one dependency's file silently win.
+    mergeServiceFiles()
 }
 
 tasks.build {

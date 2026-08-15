@@ -1,14 +1,5 @@
-package net.agl.rest.keycloak.config
+package net.agl.keycloak.config
 
-import net.agl.keycloak.config.ConfigNode
-import net.agl.keycloak.config.asInt
-import net.agl.keycloak.config.asString
-import net.agl.keycloak.config.asStringList
-import net.agl.keycloak.config.deepMerge
-import net.agl.keycloak.config.get
-import net.agl.keycloak.config.propertiesToTree
-import net.agl.keycloak.config.toEnvVarName
-import net.agl.keycloak.config.yamlToTree
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets
 import kotlin.test.Test
@@ -84,5 +75,19 @@ class AppConfigTest {
     fun `env var name is KCEL_-prefixed, relaxed binding collapses dots and dashes to underscore`() {
         assertEquals("KCEL_EVENT_LISTENER_WEBHOOK_URL", toEnvVarName("event-listener.webhook.url"))
         assertEquals("KCEL_EVENT_LISTENER_WEBHOOK_URL", toEnvVarName("event-listener.webhook-url"))
+    }
+
+    @Test
+    fun `an empty or fully commented-out yaml file parses to an empty tree, not an error`() {
+        val yaml = """
+            # nothing active in this file, like the shipped kc-event-listener.yml example
+            # feedback:
+            #   webhook:
+            #     - url: https://example.com/hook
+        """.trimIndent()
+
+        val tree = yamlToTree(stream(yaml))
+
+        assertEquals(ConfigNode.Obj(emptyMap()), tree)
     }
 }

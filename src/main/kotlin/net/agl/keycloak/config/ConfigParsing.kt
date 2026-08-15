@@ -45,8 +45,9 @@ internal fun navigate(root: ConfigNode, path: String): ConfigNode? {
 /** kc-event-listener.yml/.yaml -> tree, using SnakeYAML's native map/list/scalar structure directly. */
 internal fun yamlToTree(stream: InputStream): ConfigNode.Obj {
     val raw = Yaml().load<Any?>(stream)
+    if (raw == null) return ConfigNode.Obj(emptyMap()) // empty file, or every line commented out
     return fromRaw(raw) as? ConfigNode.Obj
-        ?: throw IllegalArgumentException("YAML root must be a mapping, got: ${raw?.let { it::class.simpleName }}")
+        ?: throw IllegalArgumentException("YAML root must be a mapping, got: ${raw::class.simpleName}")
 }
 
 private fun fromRaw(value: Any?): ConfigNode = when (value) {

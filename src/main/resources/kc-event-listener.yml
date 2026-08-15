@@ -1,0 +1,44 @@
+# Reference/example configuration for this provider.
+#
+# Loaded and deep-merged (see net.agl.keycloak.config.AppConfig), lowest to highest priority:
+#   1. classpath:/kc-event-listener.{yml,yaml,properties}  <- this file, bundled inside the jar
+#   2. file:./kc-event-listener.{yml,yaml,properties}
+#   3. file:./config/kc-event-listener.{yml,yaml,properties}
+#   4. OS environment variables, prefixed KCEL_ (dots/dashes collapse to '_', e.g.
+#      feedback.webhook[0].url -> KCEL_FEEDBACK_WEBHOOK_0_URL)
+#
+# Everything below is commented out on purpose: this file ships inside the provider jar, so
+# anything active here would run for every single deployment. Copy what you need into
+# ./kc-event-listener.yml or ./config/kc-event-listener.yml next to the Keycloak server (or
+# override individual leaves with KCEL_-prefixed env vars) and uncomment it there instead.
+# See net.agl.keycloak.feedback.WebhookConfig's kdoc for the authoritative schema.
+
+# feedback:
+#   webhook:
+#     - url: https://hook1.example.com/kc-events
+#       api-key: secret-1              # optional, sent as the X-Api-Key header
+#     # - url: https://hook2.example.com/kc-events   # a second webhook is fine, same type or not
+#
+#   broker:
+#     kafka:
+#       - bootstrap-servers: localhost:9092
+#         topic: keycloak-events
+#         client-id: kc-event-listener # optional
+#         acks: all                    # optional
+#
+#     mqtt:
+#       - broker-url: tcp://localhost:1883
+#         topic: keycloak/events
+#         client-id: kc-event-listener # optional, defaults to "kc-event-listener-<index>"
+#         username: mqttuser           # optional
+#         password: mqttpass           # optional
+#         qos: 1                       # optional, defaults to 1
+#
+#     amqp:
+#       - host: localhost
+#         port: 5672                   # optional, defaults to 5672
+#         username: guest              # optional
+#         password: guest              # optional
+#         virtual-host: /              # optional, defaults to "/"
+#         exchange: keycloak.events
+#         routing-key: event

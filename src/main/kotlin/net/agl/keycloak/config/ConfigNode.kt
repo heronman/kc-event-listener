@@ -22,6 +22,9 @@ fun ConfigNode?.asLong(default: Long): Long = asString()?.toLongOrNull() ?: defa
 
 fun ConfigNode?.asStringList(): List<String> = (this as? ConfigNode.Arr)?.items.orEmpty().mapNotNull { it.asString() }
 
+/** For array-of-object sections like `feedback.webhook: [ {url: ...}, {url: ...} ]`. Non-Obj items are dropped. */
+fun ConfigNode?.asObjList(): List<ConfigNode.Obj> = (this as? ConfigNode.Arr)?.items.orEmpty().filterIsInstance<ConfigNode.Obj>()
+
 /** Number of Scalar leaves under this node — for diagnostics/logging only. */
 fun ConfigNode.leafCount(): Int = when (this) {
     is ConfigNode.Obj -> fields.values.sumOf { it.leafCount() }
