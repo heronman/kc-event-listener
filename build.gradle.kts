@@ -29,6 +29,12 @@ dependencies {
     implementation(libs.rabbitmq.amqp.client)
 
     testImplementation(kotlin("test"))
+    // compileOnly deps aren't visible to the test source set by default; WebhookEventSinkTest
+    // exercises the sink directly, so it needs the same Keycloak classes main compiles against.
+    testImplementation(libs.keycloak.core)
+    testImplementation(libs.keycloak.server.spi)
+    testImplementation(libs.keycloak.server.spi.private)
+    testImplementation(libs.jboss.logging)
 }
 
 kotlin {

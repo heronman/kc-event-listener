@@ -33,6 +33,101 @@ class FeedbackConfigTest {
     }
 
     @Test
+    fun `webhook api-key defaults its header name`() {
+        val feedback = propertiesToTree(
+            mapOf(
+                "webhook[0].url" to "https://hook1.example.com",
+                "webhook[0].api-key.value" to "secret-1",
+            ),
+        )
+
+        val config = parseWebhookConfigs(feedback).single().apiKey
+
+        assertEquals(ApiKeyConfig("secret-1", "X-Api-Key"), config)
+    }
+
+    @Test
+    fun `webhook api-key header name is overridable`() {
+        val feedback = propertiesToTree(
+            mapOf(
+                "webhook[0].url" to "https://hook1.example.com",
+                "webhook[0].api-key.value" to "secret-1",
+                "webhook[0].api-key.header" to "X-Custom-Key",
+            ),
+        )
+
+        val config = parseWebhookConfigs(feedback).single().apiKey
+
+        assertEquals(ApiKeyConfig("secret-1", "X-Custom-Key"), config)
+    }
+
+    @Test
+    fun `webhook authorization token defaults to Bearer, and 'none' sends the raw token`() {
+        val bearer = propertiesToTree(
+            mapOf(
+                "webhook[0].url" to "https://hook1.example.com",
+                "webhook[0].authorization.token" to "secret-2",
+            ),
+        )
+        val raw = propertiesToTree(
+            mapOf(
+                "webhook[0].url" to "https://hook1.example.com",
+                "webhook[0].authorization.token" to "secret-2",
+                "webhook[0].authorization.type" to "none",
+            ),
+        )
+
+        assertEquals(AuthorizationConfig.Token("secret-2", "Bearer"), parseWebhookConfigs(bearer).single().authorization)
+        assertEquals(AuthorizationConfig.Token("secret-2", null), parseWebhookConfigs(raw).single().authorization)
+    }
+
+    @Test
+    fun `webhook authorization with username and password parses as Basic`() {
+        val feedback = propertiesToTree(
+            mapOf(
+                "webhook[0].url" to "https://hook1.example.com",
+                "webhook[0].authorization.username" to "user",
+                "webhook[0].authorization.password" to "pass",
+            ),
+        )
+
+        val config = parseWebhookConfigs(feedback).single().authorization
+
+        assertEquals(AuthorizationConfig.Basic("user", "pass"), config)
+    }
+
+    @Test
+    fun `webhook hmac defaults header and algorithm`() {
+        val feedback = propertiesToTree(
+            mapOf(
+                "webhook[0].url" to "https://hook1.example.com",
+                "webhook[0].hmac.secret" to "shared-secret",
+            ),
+        )
+
+        val config = parseWebhookConfigs(feedback).single().hmac
+
+        assertEquals(HmacConfig("shared-secret", "X-Signature-256", "HmacSHA256", ""), config)
+    }
+
+    @Test
+    fun `webhook hmac header, algorithm and prefix are overridable`() {
+        val feedback = propertiesToTree(
+            mapOf(
+                "webhook[0].url" to "https://hook1.example.com",
+                "webhook[0].hmac.secret" to "shared-secret",
+                "webhook[0].hmac.header" to "X-Hub-Signature-256",
+                "webhook[0].hmac.algorithm" to "HmacSHA1",
+                "webhook[0].hmac.prefix" to "sha256=",
+            ),
+        )
+
+        val config = parseWebhookConfigs(feedback).single().hmac
+
+        assertEquals(HmacConfig("shared-secret", "X-Hub-Signature-256", "HmacSHA1", "sha256="), config)
+    }
+
+    @Test
     fun `parses multiple kafka entries with optional fields defaulted`() {
         val feedback = propertiesToTree(
             mapOf(

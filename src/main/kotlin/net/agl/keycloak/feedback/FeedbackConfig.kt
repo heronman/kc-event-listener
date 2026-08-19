@@ -10,8 +10,22 @@ import net.agl.keycloak.config.*
  * feedback:
  *   webhook:
  *     - url: https://hook1.example.com/kc-events
- *       headers:                       # optional, sent as-is with every request (e.g. auth headers)
- *         X-Api-Key: secret-1
+ *       api-key:                       # optional
+ *         value: secret-1
+ *         header: X-Api-Key            # optional, defaults to X-Api-Key
+ *       authorization:                 # optional, sent as the Authorization header
+ *         token: secret-2
+ *         type: Bearer                 # optional, defaults to Bearer; "none" -> raw "Authorization: <token>"
+ *         # or, for Basic auth instead of a token:
+ *         # username: user
+ *         # password: pass
+ *       hmac:                          # optional, signs the request body
+ *         secret: shared-secret
+ *         header: X-Signature-256      # optional, defaults to X-Signature-256
+ *         algorithm: HmacSHA256        # optional, defaults to HmacSHA256
+ *         prefix: "sha256="            # optional, defaults to "" (GitHub-style webhooks use "sha256=")
+ *       headers:                       # optional, sent as-is with every request; catch-all for anything else
+ *         X-Custom-Header: value
  *   broker:
  *     kafka:
  *       - bootstrap-servers: localhost:9092
@@ -41,6 +55,28 @@ import net.agl.keycloak.config.*
 data class WebhookConfig(
     val url: String,
     val headers: Map<String, String> = emptyMap(),
+    val apiKey: ApiKeyConfig? = null,
+    val authorization: AuthorizationConfig? = null,
+    val hmac: HmacConfig? = null,
+)
+
+data class ApiKeyConfig(
+    val value: String,
+    val header: String = "X-Api-Key",
+)
+
+sealed interface AuthorizationConfig {
+    data class Basic(val username: String, val password: String) : AuthorizationConfig
+
+    /** [type] is the Authorization scheme prefix (e.g. "Bearer"); null sends the raw token with no scheme. */
+    data class Token(val token: String, val type: String?) : AuthorizationConfig
+}
+
+data class HmacConfig(
+    val secret: String,
+    val header: String = "X-Signature-256",
+    val algorithm: String = "HmacSHA256",
+    val prefix: String = "",
 )
 
 data class KafkaSinkConfig(
@@ -75,8 +111,44 @@ internal fun parseWebhookConfigs(feedback: ConfigNode?): List<WebhookConfig> =
         WebhookConfig(
             url = cfg.requireString("url", context),
             headers = cfg["headers"].asStringMap(),
+            apiKey = parseApiKeyConfig(cfg["api-key"], "$context.api-key"),
+            authorization = parseAuthorizationConfig(cfg["authorization"], "$context.authorization"),
+            hmac = parseHmacConfig(cfg["hmac"], "$context.hmac"),
         )
     }
+
+private fun parseApiKeyConfig(node: ConfigNode?, context: String): ApiKeyConfig? {
+    if (node == null) return null
+    return ApiKeyConfig(
+        value = node.requireString("value", context),
+        header = node["header"].asString() ?: "X-Api-Key",
+    )
+}
+
+private fun parseAuthorizationConfig(node: ConfigNode?, context: String): AuthorizationConfig? {
+    if (node == null) return null
+    val username = node["username"].asString()
+    val password = node["password"].asString()
+    if (username != null || password != null) {
+        return AuthorizationConfig.Basic(
+            username = username ?: throw IllegalArgumentException("$context: missing required 'username'"),
+            password = password ?: throw IllegalArgumentException("$context: missing required 'password'"),
+        )
+    }
+    val token = node.requireString("token", context)
+    val type = node["type"].asString() ?: "Bearer"
+    return AuthorizationConfig.Token(token = token, type = if (type.equals("none", ignoreCase = true)) null else type)
+}
+
+private fun parseHmacConfig(node: ConfigNode?, context: String): HmacConfig? {
+    if (node == null) return null
+    return HmacConfig(
+        secret = node.requireString("secret", context),
+        header = node["header"].asString() ?: "X-Signature-256",
+        algorithm = node["algorithm"].asString() ?: "HmacSHA256",
+        prefix = node["prefix"].asString() ?: "",
+    )
+}
 
 internal fun parseKafkaConfigs(feedback: ConfigNode?): List<KafkaSinkConfig> =
     feedback["broker"]["kafka"].asObjList().mapIndexed { i, cfg ->
@@ -116,5 +188,5 @@ internal fun parseAmqpConfigs(feedback: ConfigNode?): List<AmqpSinkConfig> =
         )
     }
 
-private fun ConfigNode.Obj.requireString(key: String, context: String): String =
+private fun ConfigNode?.requireString(key: String, context: String): String =
     this[key].asString() ?: throw IllegalArgumentException("$context: missing required '$key'")

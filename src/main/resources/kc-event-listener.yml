@@ -16,8 +16,22 @@
 # feedback:
 #   webhook:
 #     - url: https://hook1.example.com/kc-events
-#       headers:                       # optional, sent as-is with every request (e.g. auth headers)
-#         X-Api-Key: secret-1
+#       api-key:                       # optional
+#         value: secret-1
+#         header: X-Api-Key            # optional, defaults to X-Api-Key
+#       authorization:                 # optional, sent as the Authorization header
+#         token: secret-2
+#         type: Bearer                 # optional, defaults to Bearer; "none" -> raw "Authorization: <token>"
+#         # or, for Basic auth instead of a token:
+#         # username: user
+#         # password: pass
+#       hmac:                          # optional, signs the request body
+#         secret: shared-secret
+#         header: X-Signature-256      # optional, defaults to X-Signature-256
+#         algorithm: HmacSHA256        # optional, defaults to HmacSHA256
+#         prefix: "sha256="            # optional, defaults to "" (GitHub-style webhooks use "sha256=")
+#       headers:                       # optional, sent as-is with every request; catch-all for anything else
+#         X-Custom-Header: value
 #     # - url: https://hook2.example.com/kc-events   # a second webhook is fine, same type or not
 #
 #   broker:
