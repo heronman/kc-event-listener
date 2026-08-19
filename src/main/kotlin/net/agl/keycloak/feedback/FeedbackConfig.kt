@@ -1,10 +1,6 @@
 package net.agl.keycloak.feedback
 
-import net.agl.keycloak.config.ConfigNode
-import net.agl.keycloak.config.asInt
-import net.agl.keycloak.config.asObjList
-import net.agl.keycloak.config.asString
-import net.agl.keycloak.config.get
+import net.agl.keycloak.config.*
 
 /**
  * Config shape read from `feedback` in [net.agl.keycloak.config.AppConfig] (any number of entries
@@ -14,7 +10,8 @@ import net.agl.keycloak.config.get
  * feedback:
  *   webhook:
  *     - url: https://hook1.example.com/kc-events
- *       api-key: secret-1              # optional, sent as the X-Api-Key header
+ *       headers:                       # optional, sent as-is with every request (e.g. auth headers)
+ *         X-Api-Key: secret-1
  *   broker:
  *     kafka:
  *       - bootstrap-servers: localhost:9092
@@ -41,7 +38,10 @@ import net.agl.keycloak.config.get
  * Every leaf here also picks up `KCEL_`-prefixed env var overrides and ./ , ./config file
  * overrides the same way the rest of AppConfig does — nothing feedback-specific about that part.
  */
-data class WebhookConfig(val url: String, val apiKey: String?)
+data class WebhookConfig(
+    val url: String,
+    val headers: Map<String, String> = emptyMap(),
+)
 
 data class KafkaSinkConfig(
     val bootstrapServers: String,
@@ -74,7 +74,7 @@ internal fun parseWebhookConfigs(feedback: ConfigNode?): List<WebhookConfig> =
         val context = "feedback.webhook[$i]"
         WebhookConfig(
             url = cfg.requireString("url", context),
-            apiKey = cfg["api-key"].asString(),
+            headers = cfg["headers"].asStringMap(),
         )
     }
 

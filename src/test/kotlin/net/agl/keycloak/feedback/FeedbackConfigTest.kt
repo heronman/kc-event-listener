@@ -8,11 +8,12 @@ import kotlin.test.assertTrue
 class FeedbackConfigTest {
 
     @Test
-    fun `parses multiple webhooks, including entries without an api key`() {
+    fun `parses multiple webhooks, including entries without headers`() {
         val feedback = propertiesToTree(
             mapOf(
                 "webhook[0].url" to "https://hook1.example.com",
-                "webhook[0].api-key" to "secret-1",
+                "webhook[0].headers.X-Api-Key" to "secret-1",
+                "webhook[0].headers.Authorization" to "Bearer token",
                 "webhook[1].url" to "https://hook2.example.com",
             ),
         )
@@ -21,8 +22,11 @@ class FeedbackConfigTest {
 
         assertEquals(
             listOf(
-                WebhookConfig("https://hook1.example.com", "secret-1"),
-                WebhookConfig("https://hook2.example.com", null),
+                WebhookConfig(
+                    "https://hook1.example.com",
+                    mapOf("X-Api-Key" to "secret-1", "Authorization" to "Bearer token"),
+                ),
+                WebhookConfig("https://hook2.example.com", emptyMap()),
             ),
             webhooks,
         )
@@ -81,7 +85,7 @@ class FeedbackConfigTest {
 
     @Test
     fun `missing required key throws with a path that pinpoints the offending entry`() {
-        val feedback = propertiesToTree(mapOf("webhook[0].api-key" to "secret-only-no-url"))
+        val feedback = propertiesToTree(mapOf("webhook[0].headers.X-Api-Key" to "secret-only-no-url"))
 
         val e = kotlin.test.assertFailsWith<IllegalArgumentException> { parseWebhookConfigs(feedback) }
 

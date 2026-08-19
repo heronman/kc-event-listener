@@ -25,6 +25,10 @@ fun ConfigNode?.asStringList(): List<String> = (this as? ConfigNode.Arr)?.items.
 /** For array-of-object sections like `feedback.webhook: [ {url: ...}, {url: ...} ]`. Non-Obj items are dropped. */
 fun ConfigNode?.asObjList(): List<ConfigNode.Obj> = (this as? ConfigNode.Arr)?.items.orEmpty().filterIsInstance<ConfigNode.Obj>()
 
+/** For free-form key/value sections like `headers: { X-Api-Key: secret }`. Non-Scalar values are dropped. */
+fun ConfigNode?.asStringMap(): Map<String, String> =
+    (this as? ConfigNode.Obj)?.fields.orEmpty().mapNotNull { (k, v) -> v.asString()?.let { k to it } }.toMap()
+
 /** Number of Scalar leaves under this node — for diagnostics/logging only. */
 fun ConfigNode.leafCount(): Int = when (this) {
     is ConfigNode.Obj -> fields.values.sumOf { it.leafCount() }

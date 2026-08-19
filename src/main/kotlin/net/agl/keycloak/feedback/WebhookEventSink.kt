@@ -9,7 +9,7 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Duration
 
-/** POSTs the full event as JSON to [WebhookConfig.url]; sets `X-Api-Key` when [WebhookConfig.apiKey] is set. */
+/** POSTs the full event as JSON to [WebhookConfig.url]; sends [WebhookConfig.headers] as-is (auth scheme is up to the caller). */
 class WebhookEventSink(private val config: WebhookConfig) : EventSink {
 
     companion object {
@@ -26,7 +26,7 @@ class WebhookEventSink(private val config: WebhookConfig) : EventSink {
             .timeout(Duration.ofSeconds(10))
             .header("Content-Type", "application/json")
             .POST(HttpRequest.BodyPublishers.ofString(body))
-        config.apiKey?.let { requestBuilder.header("X-Api-Key", it) }
+        config.headers.forEach { (name, value) -> requestBuilder.header(name, value) }
 
         val response = client.send(requestBuilder.build(), HttpResponse.BodyHandlers.discarding())
         if (response.statusCode() >= 300) {

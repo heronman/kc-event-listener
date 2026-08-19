@@ -16,7 +16,8 @@
 # feedback:
 #   webhook:
 #     - url: https://hook1.example.com/kc-events
-#       api-key: secret-1              # optional, sent as the X-Api-Key header
+#       headers:                       # optional, sent as-is with every request (e.g. auth headers)
+#         X-Api-Key: secret-1
 #     # - url: https://hook2.example.com/kc-events   # a second webhook is fine, same type or not
 #
 #   broker:

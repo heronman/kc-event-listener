@@ -84,7 +84,8 @@ and skipped — it does not prevent the others from starting. See
 feedback:
   webhook:
     - url: https://hook1.example.com/kc-events
-      api-key: secret-1              # optional, sent as the X-Api-Key header
+      headers:                       # optional, sent as-is with every request (e.g. auth headers)
+        X-Api-Key: secret-1
 
   broker:
     kafka:
@@ -115,7 +116,7 @@ Equivalent `.properties` form (dotted/indexed keys, same tree shape):
 
 ```properties
 feedback.webhook[0].url=https://hook1.example.com/kc-events
-feedback.webhook[0].api-key=secret-1
+feedback.webhook[0].headers.X-Api-Key=secret-1
 feedback.broker.kafka[0].bootstrap-servers=localhost:9092
 feedback.broker.kafka[0].topic=keycloak-events
 ```
@@ -123,16 +124,16 @@ feedback.broker.kafka[0].topic=keycloak-events
 Or override a single leaf via environment variable, on top of whatever the files say:
 
 ```bash
-export KCEL_FEEDBACK_WEBHOOK_0_API_KEY=prod-secret
+export KCEL_FEEDBACK_WEBHOOK_0_HEADERS_X_API_KEY=prod-secret
 ```
 
 Every sink receives the **same** event, serialized as JSON via
 `org.keycloak.util.JsonSerialization` (Keycloak's own bundled Jackson — nothing extra pulled in
 for this), one HTTP POST / message per transport per event:
 
-- **Webhook**: `POST` to `url`, `Content-Type: application/json`, `X-Api-Key` header if `api-key`
-  is set. Body is the full `Event` (type, time, realmId, clientId, userId, sessionId, ipAddress,
-  error, details).
+- **Webhook**: `POST` to `url`, `Content-Type: application/json`, plus any `headers` given (e.g.
+  for auth — the schema doesn't assume a particular scheme). Body is the full `Event` (type, time,
+  realmId, clientId, userId, sessionId, ipAddress, error, details).
 - **Kafka**: value = event JSON, key = `userId`, sent to `topic`.
 - **MQTT**: payload = event JSON, published to `topic` at the given `qos`.
 - **AMQP**: payload = event JSON, published to `exchange` with `routing-key`.
