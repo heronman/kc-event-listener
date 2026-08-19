@@ -2,6 +2,8 @@ package net.agl.keycloak.feedback
 
 import net.agl.keycloak.config.AppConfig
 import net.agl.keycloak.config.get
+import net.agl.keycloak.feedback.EventSinkRegistry.closeAll
+import net.agl.keycloak.feedback.EventSinkRegistry.sinks
 import org.jboss.logging.Logger
 import org.keycloak.events.Event
 
@@ -12,7 +14,7 @@ import org.keycloak.events.Event
  * clusters); a sink that fails to start (bad config, unreachable broker) is logged and skipped,
  * it does not prevent the others from starting.
  *
- * Built once, lazily, and shared across every [net.agl.keycloak.events.UserEventListenerProvider]
+ * Built once, lazily, and shared across every [net.agl.keycloak.listener.UserEventListenerProvider]
  * instance (i.e. every request) for the lifetime of this classloader — call [sinks] once at
  * server startup (see the factory's `postInit`) so connection failures surface then, not on the
  * first event, and call [closeAll] on shutdown (the factory's `close`).

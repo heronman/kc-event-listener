@@ -150,7 +150,7 @@ for this), one HTTP POST / message per transport per event:
 ## Project layout
 
 ```
-net.agl.keycloak.events    UserEventListenerProvider(Factory) — the Keycloak SPI entry point
+net.agl.keycloak.listener    UserEventListenerProvider(Factory) — the Keycloak SPI entry point
 net.agl.keycloak.config    AppConfig / ConfigNode — layered config tree loader
 net.agl.keycloak.feedback  EventSink + WebhookEventSink/KafkaEventSink/MqttEventSink/AmqpEventSink
                             + EventSinkRegistry (builds sinks from config) + FeedbackConfig (parsing)

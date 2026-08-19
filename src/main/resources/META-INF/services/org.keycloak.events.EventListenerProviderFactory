@@ -1,1 +1,1 @@
-net.agl.keycloak.events.UserEventListenerProviderFactory
+net.agl.keycloak.listener.UserEventListenerProviderFactory

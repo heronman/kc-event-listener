@@ -1,4 +1,4 @@
-package net.agl.keycloak.events
+package net.agl.keycloak.listener
 
 import net.agl.keycloak.config.AppConfig
 import net.agl.keycloak.config.leafCount
