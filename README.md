@@ -16,15 +16,29 @@ configuration (YAML/properties files + environment variables).
 ./gradlew build
 ```
 
-Produces a single self-contained (shaded) jar at `build/libs/kc-event-listener-<version>.jar`.
-It bundles everything Keycloak doesn't already provide — Kotlin stdlib, SnakeYAML (relocated to
-avoid clashing with the copy Keycloak/Quarkus ships), `kafka-clients`, Eclipse Paho (MQTT), and
-`amqp-client` (RabbitMQ). Expect the jar to be tens of MB, mostly `kafka-clients`.
+Produces several self-contained (shaded) jars under `build/libs/`, all bundling Kotlin stdlib and
+SnakeYAML (relocated to avoid clashing with the copy Keycloak/Quarkus ships) plus, per variant,
+that transport's client library — most deployments use one transport, never all three brokers at
+once, so there's no reason to ship `kafka-clients` (~20MB of transitive deps) to a webhook-only
+deployment:
+
+| Jar | Classifier | Bundles |
+| --- | --- | --- |
+| `kc-event-listener-<version>.jar` | *(none)* | webhook + Kafka + MQTT + AMQP — everything |
+| `kc-event-listener-<version>-webhook.jar` | `webhook` | webhook only |
+| `kc-event-listener-<version>-kafka.jar` | `kafka` | webhook + `kafka-clients` |
+| `kc-event-listener-<version>-mqtt.jar` | `mqtt` | webhook + Eclipse Paho |
+| `kc-event-listener-<version>-amqp.jar` | `amqp` | webhook + `amqp-client` (RabbitMQ) |
+
+All five are published to the Maven repo too (see `publishing` in `build.gradle.kts`), so a
+deployment can pull the one it needs by classifier instead of building from source.
 
 ## Deploy
 
+Pick the jar matching the transport(s) you're using (see the table above) and drop just that one in:
+
 ```bash
-cp build/libs/kc-event-listener-<version>.jar $KEYCLOAK_HOME/providers/
+cp build/libs/kc-event-listener-<version>-webhook.jar $KEYCLOAK_HOME/providers/
 $KEYCLOAK_HOME/bin/kc.sh build
 ```
 
