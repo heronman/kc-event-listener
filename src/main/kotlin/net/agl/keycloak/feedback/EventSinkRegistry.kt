@@ -43,19 +43,20 @@ object EventSinkRegistry {
 
     private fun build(): List<EventSink> {
         val feedback = AppConfig.tree["feedback"]
+        val payloadConfig = parsePayloadConfig(feedback)
         val sinks = mutableListOf<EventSink>()
 
         for (cfg in parseWebhookConfigs(feedback)) {
-            start("webhook ${cfg.url}") { WebhookEventSink(cfg) }?.let(sinks::add)
+            start("webhook ${cfg.url}") { WebhookEventSink(cfg, payloadConfig) }?.let(sinks::add)
         }
         for (cfg in parseKafkaConfigs(feedback)) {
-            start("kafka ${cfg.bootstrapServers} topic=${cfg.topic}") { KafkaEventSink(cfg) }?.let(sinks::add)
+            start("kafka ${cfg.bootstrapServers} topic=${cfg.topic}") { KafkaEventSink(cfg, payloadConfig) }?.let(sinks::add)
         }
         for (cfg in parseMqttConfigs(feedback)) {
-            start("mqtt ${cfg.brokerUrl} topic=${cfg.topic}") { MqttEventSink(cfg) }?.let(sinks::add)
+            start("mqtt ${cfg.brokerUrl} topic=${cfg.topic}") { MqttEventSink(cfg, payloadConfig) }?.let(sinks::add)
         }
         for (cfg in parseAmqpConfigs(feedback)) {
-            start("amqp ${cfg.host}:${cfg.port} exchange=${cfg.exchange}") { AmqpEventSink(cfg) }?.let(sinks::add)
+            start("amqp ${cfg.host}:${cfg.port} exchange=${cfg.exchange}") { AmqpEventSink(cfg, payloadConfig) }?.let(sinks::add)
         }
 
         log.infof("EventSinkRegistry started %d feedback sink(s)", sinks.size)

@@ -2,7 +2,6 @@ package net.agl.keycloak.feedback
 
 import org.jboss.logging.Logger
 import org.keycloak.events.Event
-import org.keycloak.util.JsonSerialization
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -15,11 +14,12 @@ import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
 /**
- * POSTs the full event as JSON to [WebhookConfig.url]. Auth, if any, is layered on as headers in
- * this order (later wins on a name clash): [WebhookConfig.headers], [WebhookConfig.apiKey],
- * [WebhookConfig.authorization], [WebhookConfig.hmac] (a signature over the JSON body).
+ * POSTs [FeedbackPayload] (shaped by [PayloadConfig] — see its kdoc) as JSON to [WebhookConfig.url].
+ * Auth, if any, is layered on as headers in this order (later wins on a name clash):
+ * [WebhookConfig.headers], [WebhookConfig.apiKey], [WebhookConfig.authorization],
+ * [WebhookConfig.hmac] (a signature over the JSON body).
  */
-class WebhookEventSink(private val config: WebhookConfig) : EventSink {
+class WebhookEventSink(private val config: WebhookConfig, private val payloadConfig: PayloadConfig) : EventSink {
 
     companion object {
         private val log = Logger.getLogger(WebhookEventSink::class.java)
@@ -30,7 +30,7 @@ class WebhookEventSink(private val config: WebhookConfig) : EventSink {
         .build()
 
     override fun send(event: Event) {
-        val body = JsonSerialization.writeValueAsString(event)
+        val body = feedbackPayloadJson(event, payloadConfig)
         val requestBuilder = HttpRequest.newBuilder(URI.create(config.url))
             .timeout(Duration.ofSeconds(10))
             .header("Content-Type", "application/json")

@@ -96,6 +96,10 @@ and skipped — it does not prevent the others from starting. See
 
 ```yaml
 feedback:
+  payload:                           # optional; shapes what every sink actually sends — see below
+    include-root: [realmId]          # optional, default []; subset of id, realmId, ipAddress
+    include-details: [redirect_uri]  # optional, default []; Event.details keys to forward
+
   webhook:
     - url: https://hook1.example.com/kc-events
       api-key:                       # optional
@@ -121,23 +125,33 @@ feedback:
         topic: keycloak-events
         client-id: kc-event-listener # optional
         acks: all                    # optional
+        tls:                        # optional — TLS is on by default for every broker, see below
+          enabled: true               # optional, defaults to true
+          trusted-certificates:       # optional, PEM file paths; pins trust to these instead of the JVM default
+            - /etc/keycloak/certs/broker-ca.pem
 
     mqtt:
-      - broker-url: tcp://localhost:1883
+      - broker-url: ssl://localhost:8883  # ssl:// (or wss://) is what actually enables TLS on the wire
         topic: keycloak/events
         client-id: kc-event-listener # optional, defaults to "kc-event-listener-<index>"
         username: mqttuser           # optional
         password: mqttpass           # optional
         qos: 1                       # optional, defaults to 1
+        tls:
+          trusted-certificates:
+            - /etc/keycloak/certs/broker-ca.pem
 
     amqp:
       - host: localhost
-        port: 5672                   # optional, defaults to 5672
+        port: 5671                   # optional, defaults to 5671 with tls enabled (the default), else 5672
         username: guest              # optional
         password: guest              # optional
         virtual-host: /              # optional, defaults to "/"
         exchange: keycloak.events
         routing-key: event
+        tls:
+          trusted-certificates:
+            - /etc/keycloak/certs/broker-ca.pem
 ```
 
 Equivalent `.properties` form (dotted/indexed keys, same tree shape):
@@ -155,17 +169,47 @@ Or override a single leaf via environment variable, on top of whatever the files
 export KCEL_FEEDBACK_WEBHOOK_0_API_KEY_VALUE=prod-secret
 ```
 
-Every sink receives the **same** event, serialized as JSON via
-`org.keycloak.util.JsonSerialization` (Keycloak's own bundled Jackson — nothing extra pulled in
-for this), one HTTP POST / message per transport per event:
+#### What's actually sent
+
+Every sink receives the **same** shaped payload — not the raw `org.keycloak.events.Event` — built
+per `feedback.payload` and serialized as JSON via `org.keycloak.util.JsonSerialization` (Keycloak's
+own bundled Jackson, nothing extra pulled in for this). `Event` carries PII (username, email,
+IP address, ...) in its root fields and its open-ended `details` map, and not every consumer needs
+it — a session-revocation listener, for instance, only needs `type`/`userId`/`sessionId`. So by
+default only the low-cardinality, non-PII fields go out: `time`, `type`, `realmName`, `clientId`,
+`userId`, `sessionId`, `error`, plus a `details` object that's **empty unless configured**.
+`feedback.payload.include-root` (a subset of `id`, `realmId`, `ipAddress` — everything else on
+`Event`'s root is already always-sent) and `include-details` (any key from `Event`'s own `details`
+map, e.g. `redirect_uri`, `username`) opt specific fields back in; both land in the outgoing
+`details` object under their original name. See `net.agl.keycloak.feedback.FeedbackPayload`'s kdoc.
+
+One HTTP POST / message per transport per event:
 
 - **Webhook**: `POST` to `url`, `Content-Type: application/json`, plus (in this order, later wins
   on a header-name clash) any `headers` given, `api-key`, `authorization`, then `hmac` — a
-  signature computed over the JSON body, so it always reflects what's actually sent. Body is the
-  full `Event` (type, time, realmId, clientId, userId, sessionId, ipAddress, error, details).
-- **Kafka**: value = event JSON, key = `userId`, sent to `topic`.
-- **MQTT**: payload = event JSON, published to `topic` at the given `qos`.
-- **AMQP**: payload = event JSON, published to `exchange` with `routing-key`.
+  signature computed over the JSON body, so it always reflects what's actually sent.
+- **Kafka**: value = payload JSON, key = `userId`, sent to `topic`.
+- **MQTT**: payload = payload JSON, published to `topic` at the given `qos`.
+- **AMQP**: payload = payload JSON, published to `exchange` with `routing-key`.
+
+#### Broker TLS
+
+Kafka, MQTT, and AMQP each take a `tls` block (see `net.agl.keycloak.feedback.TlsConfig`), **on by
+default**:
+
+- Kafka/AMQP: `tls.enabled` (default `true`) directly selects `SSL`/`useSslProtocol()` on the
+  client — set it to `false` for a deliberately-unencrypted broker (this also silences the sink's
+  plaintext warning). Since AMQP's default port depends on this, `port` defaults to `5671` when
+  TLS is enabled and `5672` when it isn't, unless set explicitly.
+- MQTT is different: the wire transport is fixed by the `ssl://`/`wss://` scheme in `broker-url`
+  itself, so `tls.enabled` can't override that — it only gates the plaintext warning.
+- `tls.trusted-certificates` (all three): PEM file paths. When set, the connection trusts **only**
+  these certs instead of the JVM's default trust store — for a broker on a closed network behind a
+  self-signed or locally-issued cert. For MQTT this applies whenever `broker-url` is already
+  `ssl://`/`wss://`, regardless of `tls.enabled`.
+
+A sink that ends up connecting without TLS — `tls.enabled: false` on Kafka/AMQP, or a plaintext
+`broker-url` on MQTT — logs a warning on startup so a plaintext broker doesn't go unnoticed.
 
 ### Known limitations
 

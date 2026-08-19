@@ -37,8 +37,10 @@ class WebhookEventSinkTest {
 
     private fun url() = "http://127.0.0.1:${server.address.port}/"
 
-    private fun send(config: WebhookConfig) {
-        WebhookEventSink(config).use { it.send(Event().apply { type = EventType.LOGIN }) }
+    private fun send(config: WebhookConfig, payloadConfig: PayloadConfig = PayloadConfig()) {
+        WebhookEventSink(config, payloadConfig).use {
+            it.send(Event().apply { type = EventType.LOGIN; ipAddress = "203.0.113.7" })
+        }
     }
 
     @Test
@@ -92,5 +94,14 @@ class WebhookEventSinkTest {
         )
 
         assertEquals(listOf("from-api-key"), receivedHeaders["X-Api-Key"])
+    }
+
+    @Test
+    fun `body is the shaped payload, not the raw event, and PayloadConfig actually reaches the wire`() {
+        send(WebhookConfig(url()))
+        assertEquals(false, receivedBody.contains("203.0.113.7"), "ipAddress must not leak with the default PayloadConfig")
+
+        send(WebhookConfig(url()), PayloadConfig(includeRoot = setOf("ipAddress")))
+        assertEquals(true, receivedBody.contains("203.0.113.7"), "ipAddress must appear once opted into via PayloadConfig")
     }
 }

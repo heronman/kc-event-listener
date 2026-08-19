@@ -163,7 +163,7 @@ class FeedbackConfigTest {
     }
 
     @Test
-    fun `amqp entry defaults port and virtual host when unset`() {
+    fun `amqp entry defaults to the TLS port and virtual host when unset, TLS being on by default`() {
         val feedback = propertiesToTree(
             mapOf(
                 "broker.amqp[0].host" to "localhost",
@@ -174,8 +174,46 @@ class FeedbackConfigTest {
 
         val config = parseAmqpConfigs(feedback).single()
 
-        assertEquals(5672, config.port)
+        assertEquals(5671, config.port)
         assertEquals("/", config.virtualHost)
+        assertEquals(TlsConfig(), config.tls)
+    }
+
+    @Test
+    fun `amqp entry falls back to the plaintext port when tls is explicitly disabled`() {
+        val feedback = propertiesToTree(
+            mapOf(
+                "broker.amqp[0].host" to "localhost",
+                "broker.amqp[0].exchange" to "keycloak.events",
+                "broker.amqp[0].routing-key" to "event",
+                "broker.amqp[0].tls.enabled" to "false",
+            ),
+        )
+
+        val config = parseAmqpConfigs(feedback).single()
+
+        assertEquals(5672, config.port)
+        assertEquals(TlsConfig(enabled = false), config.tls)
+    }
+
+    @Test
+    fun `broker tls trusted-certificates parses as a list, kafka and mqtt default to tls enabled`() {
+        val feedback = propertiesToTree(
+            mapOf(
+                "broker.kafka[0].bootstrap-servers" to "localhost:9092",
+                "broker.kafka[0].topic" to "keycloak-events",
+                "broker.kafka[0].tls.trusted-certificates[0]" to "/etc/certs/ca1.pem",
+                "broker.kafka[0].tls.trusted-certificates[1]" to "/etc/certs/ca2.pem",
+                "broker.mqtt[0].broker-url" to "ssl://localhost:8883",
+                "broker.mqtt[0].topic" to "keycloak/events",
+            ),
+        )
+
+        val kafka = parseKafkaConfigs(feedback).single()
+        val mqtt = parseMqttConfigs(feedback).single()
+
+        assertEquals(TlsConfig(enabled = true, trustedCertificates = listOf("/etc/certs/ca1.pem", "/etc/certs/ca2.pem")), kafka.tls)
+        assertEquals(TlsConfig(), mqtt.tls)
     }
 
     @Test
@@ -196,5 +234,35 @@ class FeedbackConfigTest {
         assertEquals(emptyList(), parseKafkaConfigs(feedback))
         assertEquals(emptyList(), parseMqttConfigs(feedback))
         assertEquals(emptyList(), parseAmqpConfigs(feedback))
+    }
+
+    @Test
+    fun `payload config defaults to nothing extra forwarded`() {
+        assertEquals(PayloadConfig(), parsePayloadConfig(propertiesToTree(emptyMap())))
+    }
+
+    @Test
+    fun `payload config parses include-root and include-details lists`() {
+        val feedback = propertiesToTree(
+            mapOf(
+                "payload.include-root[0]" to "realmId",
+                "payload.include-root[1]" to "ipAddress",
+                "payload.include-details[0]" to "redirect_uri",
+            ),
+        )
+
+        val config = parsePayloadConfig(feedback)
+
+        assertEquals(setOf("realmId", "ipAddress"), config.includeRoot)
+        assertEquals(setOf("redirect_uri"), config.includeDetails)
+    }
+
+    @Test
+    fun `payload config rejects an unknown include-root field`() {
+        val feedback = propertiesToTree(mapOf("payload.include-root[0]" to "userId"))
+
+        val e = kotlin.test.assertFailsWith<IllegalArgumentException> { parsePayloadConfig(feedback) }
+
+        assertTrue(e.message!!.contains("userId"))
     }
 }

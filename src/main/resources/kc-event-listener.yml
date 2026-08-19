@@ -14,6 +14,10 @@
 # See net.agl.keycloak.feedback.WebhookConfig's kdoc for the authoritative schema.
 
 # feedback:
+#   payload:                          # optional; shapes what every sink sends, see FeedbackPayload's kdoc
+#     include-root: [realmId]         # optional, default []; subset of id, realmId, ipAddress
+#     include-details: [redirect_uri] # optional, default []; Event.details keys to forward
+#
 #   webhook:
 #     - url: https://hook1.example.com/kc-events
 #       api-key:                       # optional
@@ -40,20 +44,30 @@
 #         topic: keycloak-events
 #         client-id: kc-event-listener # optional
 #         acks: all                    # optional
+#         tls:                        # optional; TLS is on by default for every broker, see TlsConfig
+#           enabled: true               # optional, defaults to true
+#           trusted-certificates:       # optional, PEM file paths; pins trust to these instead of the JVM default
+#             - /etc/keycloak/certs/broker-ca.pem
 #
 #     mqtt:
-#       - broker-url: tcp://localhost:1883
+#       - broker-url: ssl://localhost:8883  # ssl:// (or wss://) is what actually enables TLS on the wire
 #         topic: keycloak/events
 #         client-id: kc-event-listener # optional, defaults to "kc-event-listener-<index>"
 #         username: mqttuser           # optional
 #         password: mqttpass           # optional
 #         qos: 1                       # optional, defaults to 1
+#         tls:                         # optional; trusted-certificates applies whenever broker-url is ssl(s)://
+#           trusted-certificates:
+#             - /etc/keycloak/certs/broker-ca.pem
 #
 #     amqp:
 #       - host: localhost
-#         port: 5672                   # optional, defaults to 5672
+#         port: 5671                   # optional, defaults to 5671 with tls enabled (the default), else 5672
 #         username: guest              # optional
 #         password: guest              # optional
 #         virtual-host: /              # optional, defaults to "/"
 #         exchange: keycloak.events
 #         routing-key: event
+#         tls:
+#           trusted-certificates:
+#             - /etc/keycloak/certs/broker-ca.pem
